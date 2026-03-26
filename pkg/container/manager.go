@@ -21,6 +21,8 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/moby/term"
 	"go.uber.org/zap"
+
+	"github.com/servusdei2018/sandbox/pkg/config"
 )
 
 // Manager wraps the Docker client and provides high-level container lifecycle
@@ -65,6 +67,9 @@ type Config struct {
 
 	// AttachStdin allows piping host stdin to the container.
 	AttachStdin bool
+
+	// Security holds confinement and resource-limit settings.
+	Security config.SecurityConfig
 }
 
 // NewManager creates a Manager using the Docker daemon reachable from the
@@ -120,12 +125,16 @@ func (m *Manager) PullIfMissing(ctx context.Context, imageName string) error {
 		Status         string         `json:"status"`
 		ProgressDetail progressDetail `json:"progressDetail"`
 		ID             string         `json:"id"`
+		Error          string         `json:"error"`
 	}
 
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		var evt pullEvent
 		if err := json.Unmarshal(scanner.Bytes(), &evt); err == nil {
+			if evt.Error != "" {
+				return fmt.Errorf("pull error: %s", evt.Error)
+			}
 			m.logger.Debug("image pull progress",
 				zap.String("id", evt.ID),
 				zap.String("status", evt.Status),
@@ -133,10 +142,9 @@ func (m *Manager) PullIfMissing(ctx context.Context, imageName string) error {
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		m.logger.Warn("error reading image pull stream", zap.Error(err))
+		return fmt.Errorf("failed to read pull response: %w", err)
 	}
 
-	m.logger.Info("image ready", zap.String("image", imageName))
 	return nil
 }
 
@@ -155,10 +163,26 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 		zap.Strings("cmd", cfg.Cmd),
 	)
 
+	secOpts, err := BuildSecurityOptions(cfg.Security)
+	if err != nil {
+		return "", fmt.Errorf("failed to build security options: %w", err)
+	}
+
+	m.logger.Debug("applying security options",
+		zap.Bool("read_only_root", secOpts.ReadonlyRootfs),
+		zap.String("user", secOpts.User),
+		zap.Int("dropped_caps", len(secOpts.CapDrop)),
+	)
+
 	hostCfg := &container.HostConfig{
-		Binds:       []string{fmt.Sprintf("%s:%s", cfg.WorkspaceDir, mountTarget)},
-		NetworkMode: container.NetworkMode(cfg.NetworkMode),
-		AutoRemove:  false, // We handle removal explicitly so we can log it.
+		Binds:          []string{fmt.Sprintf("%s:%s", cfg.WorkspaceDir, mountTarget)},
+		NetworkMode:    container.NetworkMode(cfg.NetworkMode),
+		AutoRemove:     false, // We handle removal explicitly so we can log it.
+		CapDrop:        secOpts.CapDrop,
+		SecurityOpt:    secOpts.SecurityOpt,
+		ReadonlyRootfs: secOpts.ReadonlyRootfs,
+		Tmpfs:          secOpts.Tmpfs,
+		Resources:      secOpts.Resources,
 	}
 
 	entrypoint := cfg.Entrypoint
@@ -169,6 +193,7 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 		Entrypoint:   entrypoint,
 		Env:          cfg.Env,
 		WorkingDir:   mountTarget,
+		User:         secOpts.User,
 		AttachStdout: true,
 		AttachStderr: true,
 		AttachStdin:  cfg.AttachStdin,
