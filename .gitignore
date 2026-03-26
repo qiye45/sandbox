@@ -1,0 +1,22 @@
+# Sandbox build artifacts
+bin/
+
+# Go toolchain
+*.test
+*.out
+coverage.html
+coverage.txt
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.*
+
+# Dependency cache
+vendor/

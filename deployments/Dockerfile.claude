@@ -1,0 +1,6 @@
+FROM node:24-slim
+
+RUN npm install -g @anthropic-ai/claude-code
+
+WORKDIR /work
+ENTRYPOINT ["claude"]

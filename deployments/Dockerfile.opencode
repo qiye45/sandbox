@@ -1,0 +1,6 @@
+FROM node:24-slim
+
+RUN npm i -g opencode-ai
+
+WORKDIR /work
+ENTRYPOINT ["opencode"]

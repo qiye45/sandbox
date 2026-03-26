@@ -1,0 +1,6 @@
+FROM node:24-slim
+
+RUN npm install -g @kilocode/cli
+
+WORKDIR /work
+ENTRYPOINT ["kilo"]

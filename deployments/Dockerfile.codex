@@ -1,0 +1,6 @@
+FROM node:24-slim
+
+RUN npm install -g @openai/codex
+
+WORKDIR /work
+ENTRYPOINT ["codex"]
