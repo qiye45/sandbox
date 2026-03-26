@@ -62,6 +62,9 @@ sandbox run --timeout 15m python train.py
 
 # Need to poke around after a crash? Keep the container:
 sandbox run --keep sh
+
+# Use a custom seccomp profile:
+sandbox run --seccomp ./my-profile.json python app.py
 ```
 
 You can view your current configuration with `sandbox config show` or generate a fresh config file with `sandbox config init`.
@@ -84,6 +87,16 @@ Out of the box, `sandbox` automatically detects and routes the following tools t
 - Go (`go`)
 
 *(If a command doesn't match these, it falls back to a generic Alpine Linux image.)*
+
+## Security & Isolation
+
+Sandbox is designed to be "secure by default" when running untrusted code. Every container is hardened with:
+
+- 🛡️ **Seccomp** — Blocks dangerous system calls (`mount`, `ptrace`, `bpf`, etc.) to prevent container escapes.
+- 🧊 **Read-Only Root** — The container's root filesystem is immutable. Only `/work` (your workspace) and `/tmp` are writable.
+- 👤 **User Namespaces** — Processes run as an unprivileged user (`nobody`), not root.
+- ⛓️ **Constrained Resources** — Cgroups enforce limits on memory (4GB), CPU, and the number of processes (512) to prevent fork bombs or system exhaustion.
+- 🚫 **Capability Dropping** — Removes high-risk Linux capabilities like `CAP_SYS_ADMIN` and `CAP_NET_RAW`.
 
 ## Configuration
 
@@ -129,6 +142,12 @@ container:
     timeout: 30m
     network_mode: bridge
     remove: true
+security:
+    memory_limit: 4GB
+    cpu_quota: 0
+    pids_limit: 512
+    read_only_root: true
+    user_mapping: 65534:65534
 logging:
     level: info
     format: console

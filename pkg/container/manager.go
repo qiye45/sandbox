@@ -186,6 +186,9 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 	}
 
 	entrypoint := cfg.Entrypoint
+	if len(secOpts.SecurityOpt) > 0 {
+		m.logger.Debug("applying security options", zap.Strings("opts", secOpts.SecurityOpt))
+	}
 
 	containerCfg := &container.Config{
 		Image:        cfg.Image,

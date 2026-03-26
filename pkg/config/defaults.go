@@ -50,6 +50,15 @@ func applyDefaults(v *viper.Viper) {
 	v.SetDefault("container.network_mode", "bridge")
 	v.SetDefault("container.remove", true)
 
+	// Security defaults.
+	v.SetDefault("security.memory_limit", "4GB")
+	v.SetDefault("security.cpu_quota", 0) // 0 = unlimited
+	v.SetDefault("security.pids_limit", 512)
+	v.SetDefault("security.seccomp_profile_path", "") // empty = built-in default
+	v.SetDefault("security.read_only_root", true)
+	v.SetDefault("security.user_mapping", "")              // empty = root inside container
+	v.SetDefault("security.drop_capabilities", []string{}) // baseline always dropped in code
+
 	// Logging defaults.
 	v.SetDefault("logging.level", "info")
 	v.SetDefault("logging.format", "console")

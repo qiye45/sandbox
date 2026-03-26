@@ -25,6 +25,7 @@ func runCmd() *cobra.Command {
 		timeoutFlag       string
 		workspaceFlag     string
 		keepContainer     bool
+		seccompFlag       string
 	)
 
 	cmd := &cobra.Command{
@@ -144,6 +145,11 @@ Examples:
 				NetworkMode:  cfg.Container.NetworkMode,
 				Tty:          true,
 				AttachStdin:  true,
+				Security:     cfg.Security,
+			}
+
+			if seccompFlag != "" {
+				containerCfg.Security.SeccompProfilePath = seccompFlag
 			}
 
 			containerID, err := manager.Create(ctx, containerCfg)
@@ -204,6 +210,7 @@ Examples:
 	cmd.Flags().StringVarP(&timeoutFlag, "timeout", "t", "", "Maximum execution time (e.g. 30m, 1h)")
 	cmd.Flags().StringVarP(&workspaceFlag, "workspace", "w", "", "Host directory to mount as /work (defaults to cwd)")
 	cmd.Flags().BoolVarP(&keepContainer, "keep", "k", false, "Do not remove the container after execution")
+	cmd.Flags().StringVar(&seccompFlag, "seccomp", "", "Path to a custom seccomp JSON profile")
 
 	// Stop flag parsing at the first non-flag argument so agent flags
 	// (e.g. python -c, node -e, claude --help) are not consumed by Cobra.
