@@ -25,11 +25,19 @@ When you give AI coding agents open access to your terminal, mistakes can happen
 
 ### Installation
 
+#### From Source
+
 ```bash
 git clone https://github.com/servusdei2018/sandbox
 cd sandbox
 make build-prod
 sudo mv bin/sandbox /usr/local/bin/
+```
+
+#### Via Go
+
+```bash
+go install github.com/servusdei2018/sandbox/cmd/sandbox@latest
 ```
 
 ## How to use it
