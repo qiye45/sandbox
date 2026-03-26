@@ -1,21 +1,25 @@
-# Sandbox [![CI](https://github.com/servusdei2018/sandbox/actions/workflows/test.yml/badge.svg)](https://github.com/servusdei2018/sandbox/actions)
+<p align="center">
+  <img src=".github/assets/sandbox.svg" alt="Sandbox Logo" width="400">
+</p>
 
-Run coding agents—like Claude Code, Gemini CLI, Codex, OpenCode, or go, python and node, safely isolated in Docker containers. 
+# Sandbox &nbsp; [![CI](https://github.com/servusdei2018/sandbox/actions/workflows/test.yml/badge.svg)](https://github.com/servusdei2018/sandbox/actions)
 
-`sandbox` automatically bind-mounts your current directory into a fresh container, protects your secrets, and cleans up after itself.
+Sandbox lets you run coding agents like Claude Code, Gemini CLI, and Codex, as well as runtimes like Go, Python, and Node, all within the safety of isolated Docker containers.
+
+Sandbox automatically maps your current directory into a fresh container, protects your secrets, and cleans up after itself.
 
 ## Why Sandbox?
 
-When you give AI coding agents open access to your terminal, mistakes can happen. Code can get comprimised. Secrets leaked.
+AI coding agents are powerful, but giving them full access to your terminal is risky. A small mistake can compromise your code or leak sensitive secrets.
 
-`sandbox` wraps those agents in a Docker container so they can read and write to your workspace without having the keys to your entire operating system. It's fast, automatic, and tries to be secure by default.
+Sandbox keeps these agents inside a secure Docker container, allowing them to work in your workspace without exposing your entire system. It’s fast, automatic, and designed to be secure from the start.
 
-- 🐳 **Invisible Docker** — You run a command, we handle the container.
-- 📁 **Auto-mounting** — Your current directory is instantly available at `/work`.
-- 🔐 **Secret scrubbing** — Because your AWS keys and GitHub tokens shouldn't be handed to an AI model by default.
-- 🤖 **Smart detection** — We know which base image you need. Run `sandbox run python` and you get Python. Run `sandbox run claude` and you get Claude.
-- ⚡ **Lightning fast** — If the image is pulled, you're running in less than 2 seconds.
-- ♻️ **Ephemeral** — Containers disappear when they exit. No clutter.
+- **Invisible Docker**: You run your commands, and we manage the container lifecycle for you.
+- **Automatic Mounting**: Your current directory is mapped directly to /work inside the container.
+- **Secret Management**: We help protect your AWS keys and GitHub tokens so they aren't shared with AI models by default.
+- **Smart Detection**: We automatically pick the right environment for you. If you run "sandbox run python," you get a Python environment.
+- **High Performance**: Once the image is downloaded, your environment starts in less than two seconds.
+- **Ephemeral Environments**: All containers are cleaned up automatically as soon as they're no longer needed.
 
 ## Getting Started
 
@@ -80,6 +84,20 @@ sandbox prune
 
 You can manage configuration with `sandbox config` or clean up stopped containers with `sandbox prune`. Use `sandbox --help` to see all available commands.
 
+### Developing
+
+Want to contribute? 
+
+```bash
+make help              # Show all available targets
+make build             # Build debug binary to ./bin/sandbox
+make build-prod        # Build production binary
+make test              # Run unit tests
+make test-integration  # Run Docker integration tests
+make lint              # Run golangci-lint
+make fmt               # Format the code
+```
+
 ## Supported Agents & Runtimes
 
 Out of the box, `sandbox` automatically detects and routes the following tools to their appropriate base images:
@@ -103,11 +121,11 @@ Out of the box, `sandbox` automatically detects and routes the following tools t
 
 Sandbox is designed to be "secure by default" when running untrusted code. Every container is hardened with:
 
-- 🛡️ **Seccomp** — Blocks dangerous system calls (`mount`, `ptrace`, `bpf`, etc.) to prevent container escapes.
-- 🧊 **Read-Only Root** — The container's root filesystem is immutable. Only `/work` (your workspace) and `/tmp` are writable.
-- 👤 **User Namespaces** — Processes run as an unprivileged user (`nobody`), not root.
-- ⛓️ **Constrained Resources** — Cgroups enforce limits on memory (4GB), CPU, and the number of processes (512) to prevent fork bombs or system exhaustion.
-- 🚫 **Capability Dropping** — Removes high-risk Linux capabilities like `CAP_SYS_ADMIN` and `CAP_NET_RAW`.
+- **Seccomp Security**: We block sensitive system calls like mount and ptrace to help prevent any accidental container escapes.
+- **Read-Only Root**: The container's root filesystem is locked down, so only your project workspace and /tmp are writable.
+- **Unprivileged Access**: All processes run as a standard user instead of root, adding another layer of safety.
+- **Resource Management**: We limit memory, CPU, and process usage to ensure your system stays stable and avoids exhaustion.
+- **Risk Mitigation**: High-risk system capabilities are disabled to keep the environment restricted.
 
 ## Configuration
 
@@ -166,20 +184,6 @@ paths:
     workspace: /work
     config_dir: ~/.sandbox
     cache_dir: ~/.sandbox/cache
-```
-
-## Developing
-
-Want to contribute? 
-
-```bash
-make help              # Show all available targets
-make build             # Build debug binary to ./bin/sandbox
-make build-prod        # Build production binary
-make test              # Run unit tests
-make test-integration  # Run Docker integration tests
-make lint              # Run golangci-lint
-make fmt               # Format the code
 ```
 
 ## License
