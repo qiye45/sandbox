@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -18,14 +19,14 @@ import (
 func Load(logger *zap.Logger) (*Config, error) {
 	logger.Debug("loading configuration")
 
-	v := viper.New()
-	applyDefaults(v)
-
-	// Resolve config directory (~/.sandbox) and configure Viper.
+	// Resolve config directory and home dir first.
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
 		return nil, fmt.Errorf("could not determine home directory: %w", err)
 	}
+
+	v := viper.New()
+	applyDefaults(v, homeDir)
 
 	configDir := filepath.Join(homeDir, ".sandbox")
 	v.SetConfigName("config")
@@ -51,14 +52,36 @@ func Load(logger *zap.Logger) (*Config, error) {
 		return nil, fmt.Errorf("failed to unmarshal configuration: %w", err)
 	}
 
+	// Post-unmarshal robust path expansion. This handles tildes from the
+	// config file itself.
+	cfg.Paths.ConfigDir = expandHome(cfg.Paths.ConfigDir, homeDir)
+	cfg.Paths.CacheDir = expandHome(cfg.Paths.CacheDir, homeDir)
+	cfg.Security.SeccompProfilePath = expandHome(cfg.Security.SeccompProfilePath, homeDir)
+
 	logger.Info("configuration loaded",
 		zap.String("log_level", cfg.Logging.Level),
 		zap.String("log_format", cfg.Logging.Format),
 		zap.String("workspace", cfg.Paths.Workspace),
-		zap.String("timeout", cfg.Container.Timeout),
+		zap.String("config_dir", cfg.Paths.ConfigDir),
+		zap.String("cache_dir", cfg.Paths.CacheDir),
 	)
 
 	return &cfg, nil
+}
+
+// expandHome replaces a leading ~ with the provided homeDir in a path.
+func expandHome(path string, homeDir string) string {
+	if path == "" {
+		return ""
+	}
+	if path == "~" {
+		return homeDir
+	}
+	if strings.HasPrefix(path, "~/") || strings.HasPrefix(path, "~"+string(os.PathSeparator)) || strings.HasPrefix(path, "~.") {
+		// Replace the ~ with homeDir and clean the path.
+		return filepath.Clean(filepath.Join(homeDir, path[1:]))
+	}
+	return filepath.Clean(path)
 }
 
 // WriteDefault creates a default config file at ~/.sandbox/config.yaml if the
@@ -81,7 +104,7 @@ func WriteDefault(logger *zap.Logger) error {
 	}
 
 	v := viper.New()
-	applyDefaults(v)
+	applyDefaults(v, homeDir)
 
 	var cfg Config
 	if err := v.Unmarshal(&cfg); err != nil {
@@ -93,7 +116,7 @@ func WriteDefault(logger *zap.Logger) error {
 		return fmt.Errorf("failed to marshal default config: %w", err)
 	}
 
-	header := []byte("# Sandbox CLI Configuration\n# See https://github.com/servusdei2018/sandbox for documentation.\n\n")
+	header := []byte("# Sandbox CLI Configuration\n# See https://github.com/servusdei2018/sandbox/blob/main/docs/configuration.md for documentation.\n\n")
 	fullContent := append(header, yamlData...)
 
 	if err := os.WriteFile(configFile, fullContent, 0o644); err != nil {

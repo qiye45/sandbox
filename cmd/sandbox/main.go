@@ -44,6 +44,7 @@ with the current working directory bind-mounted to /work.`,
 
 	rootCmd.AddCommand(runCmd())
 	rootCmd.AddCommand(pruneCmd())
+	rootCmd.AddCommand(cacheCmd())
 	rootCmd.AddCommand(versionCmd())
 	rootCmd.AddCommand(configCmd())
 

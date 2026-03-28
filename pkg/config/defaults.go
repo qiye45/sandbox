@@ -1,12 +1,16 @@
 package config
 
-import "github.com/spf13/viper"
+import (
+	"path/filepath"
+
+	"github.com/spf13/viper"
+)
 
 // applyDefaults registers all hardcoded default values with the Viper instance.
 //
 // These values are the lowest priority and will be overridden by the config
 // file or any CLI flags.
-func applyDefaults(v *viper.Viper) {
+func applyDefaults(v *viper.Viper, homeDir string) {
 	v.SetDefault("images.default", "alpine:latest")
 	v.SetDefault("images.claude", "ghcr.io/servusdei2018/sandbox-claude:latest")
 	v.SetDefault("images.gemini", "ghcr.io/servusdei2018/sandbox-gemini:latest")
@@ -65,6 +69,6 @@ func applyDefaults(v *viper.Viper) {
 
 	// Path defaults.
 	v.SetDefault("paths.workspace", "/work")
-	v.SetDefault("paths.config_dir", "~/.sandbox")
-	v.SetDefault("paths.cache_dir", "~/.sandbox/cache")
+	v.SetDefault("paths.config_dir", filepath.Join(homeDir, ".sandbox"))
+	v.SetDefault("paths.cache_dir", filepath.Join(homeDir, ".sandbox", "cache"))
 }

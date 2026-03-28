@@ -28,6 +28,7 @@ var binaryToType = map[string]Type{
 	"bun":      TypeBun,
 	"bunx":     TypeBun,
 	"go":       TypeGo,
+	"aider":    TypeAider,
 }
 
 // Detect inspects args and env to determine which agent is being invoked

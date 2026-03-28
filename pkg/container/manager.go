@@ -72,6 +72,13 @@ type Config struct {
 
 	// Security holds confinement and resource-limit settings.
 	Security config.SecurityConfig
+
+	// CacheDir is the host path where dependency caches are stored.
+	CacheDir string
+
+	// WrapperMount is an optional bind mount specification for a generated
+	// entrypoint wrapper script.
+	WrapperMount string
 }
 
 // NewManager creates a Manager using the Docker daemon reachable from the
@@ -170,8 +177,16 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 		return "", fmt.Errorf("failed to build security options: %w", err)
 	}
 
+	binds := []string{fmt.Sprintf("%s:%s", cfg.WorkspaceDir, mountTarget)}
+	if cfg.WrapperMount != "" {
+		binds = append(binds, cfg.WrapperMount)
+	}
+	if cfg.CacheDir != "" {
+		binds = append(binds, fmt.Sprintf("%s:/home/sandbox/.cache", cfg.CacheDir))
+	}
+
 	hostCfg := &container.HostConfig{
-		Binds:          []string{fmt.Sprintf("%s:%s", cfg.WorkspaceDir, mountTarget)},
+		Binds:          binds,
 		NetworkMode:    container.NetworkMode(cfg.NetworkMode),
 		AutoRemove:     false, // We handle removal explicitly so we can log it.
 		CapDrop:        secOpts.CapDrop,
@@ -187,11 +202,24 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 		m.logger.Debug("applying security options", zap.Strings("opts", secOpts.SecurityOpt))
 	}
 
+	containerEnv := append([]string{}, cfg.Env...)
+	// Override HOME so the container uses /home/sandbox. This allows standard
+	// package managers to natively hit the ~/.cache volume mount instead of
+	// requiring specific sub-directory ENV vars (PIP_CACHE_DIR, GOCACHE, etc).
+	// We still explicitly route npm and bun to ~/.cache since they deviate from XDG defaults.
+	if cfg.CacheDir != "" {
+		containerEnv = append(containerEnv,
+			"HOME=/home/sandbox",
+			"NPM_CONFIG_CACHE=/home/sandbox/.cache/npm",
+			"BUN_INSTALL_CACHE_DIR=/home/sandbox/.cache/bun",
+		)
+	}
+
 	containerCfg := &container.Config{
 		Image:        cfg.Image,
 		Cmd:          cfg.Cmd,
 		Entrypoint:   entrypoint,
-		Env:          cfg.Env,
+		Env:          containerEnv,
 		WorkingDir:   mountTarget,
 		User:         secOpts.User,
 		Labels:       map[string]string{"sandbox": "true"},
@@ -403,6 +431,12 @@ func (m *Manager) Remove(ctx context.Context, containerID string) error {
 // Inspect returns the container's low-level state from the Docker daemon.
 func (m *Manager) Inspect(ctx context.Context, containerID string) (container.InspectResponse, error) {
 	return m.client.ContainerInspect(ctx, containerID)
+}
+
+// InspectImage returns the image's low-level state from the Docker daemon.
+func (m *Manager) InspectImage(ctx context.Context, imageName string) (image.InspectResponse, error) {
+	resp, err := m.client.ImageInspect(ctx, imageName)
+	return resp, err
 }
 
 // Prune removes all stopped sandbox containers (those with label sandbox=true).

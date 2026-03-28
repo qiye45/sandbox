@@ -105,10 +105,23 @@ Examples:
 				}
 			}
 
-			// Resolve symlinks so Docker bind-mount works on all systems.
-			wsDir, err = filepath.EvalSymlinks(wsDir)
+			// Resolve as absolute path and handle symlinks so Docker bind-mount
+			// works on all systems.
+			absWsDir, err := filepath.Abs(wsDir)
+			if err != nil {
+				return fmt.Errorf("failed to resolve absolute path for %s: %w", wsDir, err)
+			}
+			wsDir, err = filepath.EvalSymlinks(absWsDir)
 			if err != nil {
 				return fmt.Errorf("failed to resolve workspace path %s: %w", wsDir, err)
+			}
+			logger.Debug("resolved workspace directory", zap.String("path", wsDir))
+
+			manifest, err := config.LoadManifest(wsDir, logger)
+			if err != nil {
+				// Don't error out hard; falling back to empty manifest.
+				logger.Warn("could not load project manifest", zap.Error(err))
+				manifest = &config.ProjectManifest{}
 			}
 
 			filteredEnv := cnt.FilterEnv(hostEnv, cfg.EnvWhitelist, cfg.EnvBlocklist, logger)
@@ -137,7 +150,7 @@ Examples:
 			var entrypoint []string
 			// If an entrypoint is defined for this agent, use it.
 			if len(detectedAgent.Entrypoint) > 0 {
-				entrypoint = detectedAgent.Entrypoint
+				entrypoint = append([]string{}, detectedAgent.Entrypoint...)
 
 				// Strip the binary name from args if it matches the agent's expected binary.
 				// This allows "sandbox run claude --help" to map correctly
@@ -145,6 +158,76 @@ Examples:
 				if len(args) > 0 && detectedAgent.Name != agent.TypeGeneric {
 					containerCmd = args[1:]
 				}
+			}
+
+			var wrapperMount string
+			if len(manifest.Setup) > 0 {
+				logger.Info("generating wrapper script for setup commands", zap.Int("count", len(manifest.Setup)))
+
+				if len(entrypoint) == 0 {
+					imgInfo, err := manager.InspectImage(ctx, finalImage)
+					if err == nil && imgInfo.Config != nil {
+						entrypoint = imgInfo.Config.Entrypoint
+						if len(entrypoint) == 0 && len(containerCmd) == 0 {
+							containerCmd = imgInfo.Config.Cmd
+						}
+					}
+				}
+
+				fullCmd := append(entrypoint, containerCmd...)
+
+				tmpDir := filepath.Join(cfg.Paths.ConfigDir, "tmp")
+				if err := os.MkdirAll(tmpDir, 0o700); err != nil {
+					return fmt.Errorf("failed to create tmp dir for wrapper script: %w", err)
+				}
+
+				wrapperFile, err := os.CreateTemp(tmpDir, "wrapper-*.sh")
+				if err != nil {
+					return fmt.Errorf("failed to create wrapper script: %w", err)
+				}
+
+				wrapperPath := wrapperFile.Name()
+				defer func() {
+					if err := os.Remove(wrapperPath); err != nil {
+						logger.Warn("failed to remove wrapper script", zap.String("path", wrapperPath), zap.Error(err))
+					}
+				}()
+
+				scriptContent := "#!/bin/sh\nset -e\n"
+				for _, step := range manifest.Setup {
+					scriptContent += fmt.Sprintf("echo '=== Running setup: %s ==='\n", step)
+					scriptContent += step + "\n"
+				}
+
+				scriptContent += "echo '=== Setup complete. Executing main process. ==='\nexec"
+				for _, c := range fullCmd {
+					scriptContent += " " + fmt.Sprintf("%q", c)
+				}
+				scriptContent += "\n"
+
+				if _, err := wrapperFile.Write([]byte(scriptContent)); err != nil {
+					_ = wrapperFile.Close()
+					return fmt.Errorf("failed to write wrapper script: %w", err)
+				}
+				if err := wrapperFile.Close(); err != nil {
+					return fmt.Errorf("failed to close wrapper script: %w", err)
+				}
+
+				if err := os.Chmod(wrapperPath, 0o755); err != nil {
+					return fmt.Errorf("failed to chmod wrapper script: %w", err)
+				}
+
+				// Ensure the host path is absolute for Docker.
+				absWrapperPath, err := filepath.Abs(wrapperPath)
+				if err != nil {
+					return fmt.Errorf("failed to resolve absolute path for wrapper script: %w", err)
+				}
+
+				logger.Debug("generated entrypoint wrapper", zap.String("path", absWrapperPath))
+
+				entrypoint = []string{"/sandbox-entrypoint.sh"}
+				containerCmd = nil
+				wrapperMount = fmt.Sprintf("%s:/sandbox-entrypoint.sh:ro", absWrapperPath)
 			}
 
 			containerCfg := &cnt.Config{
@@ -160,6 +243,8 @@ Examples:
 				Tty:          true,
 				AttachStdin:  true,
 				Security:     cfg.Security,
+				CacheDir:     cfg.Paths.CacheDir,
+				WrapperMount: wrapperMount,
 			}
 
 			if seccompFlag != "" {

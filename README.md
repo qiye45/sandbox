@@ -129,62 +129,12 @@ Sandbox is designed to be "secure by default" when running untrusted code. Every
 
 ## Configuration
 
-On its first run, `sandbox` generates a configuration file at `~/.sandbox/config.yaml`. It looks like this:
+Sandbox is highly configurable via two levels of configuration:
 
-```yaml
-# Sandbox CLI Configuration
-# See https://github.com/servusdei2018/sandbox for documentation.
+1. **Global Configuration** (`~/.sandbox/config.yaml`): Configures global container limits, default base images, and environment variable allowlists/blocklists.
+2. **Workspace Configuration** (`.sandbox.yml`): Provides project-level customization such as pre-run dependency setup scripts.
 
-images:
-    bun: oven/bun:alpine
-    claude: ghcr.io/servusdei2018/sandbox-claude:latest
-    codex: ghcr.io/servusdei2018/sandbox-codex:latest
-    default: alpine:latest
-    gemini: ghcr.io/servusdei2018/sandbox-gemini:latest
-    go: golang:1.26-alpine
-    kilocode: ghcr.io/servusdei2018/sandbox-kilocode:latest
-    node: node:24-alpine
-    opencode: ghcr.io/servusdei2018/sandbox-opencode:latest
-    python: python:3.13-alpine
-env_whitelist:
-    - LANG
-    - LC_ALL
-    - LC_CTYPE
-    - SHELL
-    - TERM
-    - COLORTERM
-    - XTERM_VERSION
-    - TZ
-env_blocklist:
-    - AWS_ACCESS_KEY_ID
-    - AWS_SECRET_ACCESS_KEY
-    - AWS_SESSION_TOKEN
-    - AWS_*
-    - GCP_*
-    - GOOGLE_APPLICATION_CREDENTIALS
-    - GITHUB_TOKEN
-    - GIT_PASSWORD
-    - ANTHROPIC_API_KEY
-    - OPENAI_API_KEY
-    - COHERE_API_KEY
-container:
-    timeout: 30m
-    network_mode: bridge
-    remove: true
-security:
-    memory_limit: 4GB
-    cpu_quota: 0
-    pids_limit: 512
-    read_only_root: true
-    user_mapping: 65534:65534
-logging:
-    level: info
-    format: console
-paths:
-    workspace: /work
-    config_dir: ~/.sandbox
-    cache_dir: ~/.sandbox/cache
-```
+For detailed information on configuring Sandbox, please see the [Configuration Guide](docs/configuration.md).
 
 ## License
 

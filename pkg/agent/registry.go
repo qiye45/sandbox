@@ -14,6 +14,7 @@ const (
 	TypeNode       Type = "node"
 	TypeBun        Type = "bun"
 	TypeGo         Type = "go"
+	TypeAider      Type = "aider"
 	TypeGeneric    Type = "generic"
 )
 
@@ -59,10 +60,14 @@ var defaultRegistry = map[Type]entry{
 		Image:      "ghcr.io/servusdei2018/sandbox-opencode:latest",
 		Entrypoint: []string{"opencode"},
 	},
-	TypePython:  {Image: "python:3.13-alpine"},
-	TypeNode:    {Image: "node:24-alpine"},
-	TypeBun:     {Image: "oven/bun:alpine"},
-	TypeGo:      {Image: "golang:1.26-alpine"},
+	TypePython: {Image: "python:3.13-alpine"},
+	TypeNode:   {Image: "node:24-alpine"},
+	TypeBun:    {Image: "oven/bun:alpine"},
+	TypeGo:     {Image: "golang:1.26-alpine"},
+	TypeAider: {
+		Image:      "ghcr.io/servusdei2018/sandbox-aider:latest",
+		Entrypoint: []string{"aider"},
+	},
 	TypeGeneric: {Image: "alpine:latest"},
 }
 
