@@ -23,6 +23,8 @@ func TestLoad_Defaults(t *testing.T) {
 
 	require.Equal(t, "alpine:latest", cfg.Images["default"])
 	require.Equal(t, "/work", cfg.Paths.Workspace)
+	require.NotNil(t, cfg.Paths.MountTargets)
+	require.Empty(t, cfg.Paths.MountTargets)
 	require.Equal(t, "30m", cfg.Container.Timeout)
 	require.True(t, cfg.Container.Remove)
 	require.Equal(t, "info", cfg.Logging.Level)
@@ -55,6 +57,29 @@ container:
 	require.False(t, cfg.Container.Remove)
 	// Defaults should still apply for unset keys.
 	require.Equal(t, "/work", cfg.Paths.Workspace)
+}
+
+func TestLoad_MountTargetsExpandHome(t *testing.T) {
+	tmp := t.TempDir()
+	sandboxDir := filepath.Join(tmp, ".sandbox")
+	require.NoError(t, os.MkdirAll(sandboxDir, 0o755))
+
+	cfgContent := `
+paths:
+  mount_targets:
+    - source: "~/.codex"
+      target: "/home/sandbox/.codex"
+`
+	require.NoError(t, os.WriteFile(filepath.Join(sandboxDir, "config.yaml"), []byte(cfgContent), 0o644))
+
+	t.Setenv("HOME", tmp)
+
+	logger := zap.NewNop()
+	cfg, err := config.Load(logger)
+	require.NoError(t, err)
+	require.Len(t, cfg.Paths.MountTargets, 1)
+	require.Equal(t, filepath.Join(tmp, ".codex"), cfg.Paths.MountTargets[0].Source)
+	require.Equal(t, "/home/sandbox/.codex", cfg.Paths.MountTargets[0].Target)
 }
 
 func TestLoad_MalformedFile(t *testing.T) {

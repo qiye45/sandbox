@@ -71,4 +71,5 @@ func applyDefaults(v *viper.Viper, homeDir string) {
 	v.SetDefault("paths.workspace", "/work")
 	v.SetDefault("paths.config_dir", filepath.Join(homeDir, ".sandbox"))
 	v.SetDefault("paths.cache_dir", filepath.Join(homeDir, ".sandbox", "cache"))
+	v.SetDefault("paths.mount_targets", []MountTarget{})
 }

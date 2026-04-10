@@ -56,6 +56,7 @@ func Load(logger *zap.Logger) (*Config, error) {
 	// config file itself.
 	cfg.Paths.ConfigDir = expandHome(cfg.Paths.ConfigDir, homeDir)
 	cfg.Paths.CacheDir = expandHome(cfg.Paths.CacheDir, homeDir)
+	cfg.Paths.MountTargets = expandMountTargets(cfg.Paths.MountTargets, homeDir)
 	cfg.Security.SeccompProfilePath = expandHome(cfg.Security.SeccompProfilePath, homeDir)
 
 	logger.Info("configuration loaded",
@@ -64,6 +65,7 @@ func Load(logger *zap.Logger) (*Config, error) {
 		zap.String("workspace", cfg.Paths.Workspace),
 		zap.String("config_dir", cfg.Paths.ConfigDir),
 		zap.String("cache_dir", cfg.Paths.CacheDir),
+		zap.Int("mount_targets", len(cfg.Paths.MountTargets)),
 	)
 
 	return &cfg, nil
@@ -82,6 +84,22 @@ func expandHome(path string, homeDir string) string {
 		return filepath.Clean(filepath.Join(homeDir, path[1:]))
 	}
 	return filepath.Clean(path)
+}
+
+func expandMountTargets(mountTargets []MountTarget, homeDir string) []MountTarget {
+	if len(mountTargets) == 0 {
+		return []MountTarget{}
+	}
+
+	expanded := make([]MountTarget, 0, len(mountTargets))
+	for _, mountTarget := range mountTargets {
+		expanded = append(expanded, MountTarget{
+			Source: expandHome(mountTarget.Source, homeDir),
+			Target: mountTarget.Target,
+		})
+	}
+
+	return expanded
 }
 
 // WriteDefault creates a default config file at ~/.sandbox/config.yaml if the

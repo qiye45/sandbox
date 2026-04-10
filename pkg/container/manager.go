@@ -76,6 +76,9 @@ type Config struct {
 	// CacheDir is the host path where dependency caches are stored.
 	CacheDir string
 
+	// ExtraBinds contains additional bind mount specifications "host:container[:opts]".
+	ExtraBinds []string
+
 	// WrapperMount is an optional bind mount specification for a generated
 	// entrypoint wrapper script.
 	WrapperMount string
@@ -183,6 +186,9 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 	}
 	if cfg.CacheDir != "" {
 		binds = append(binds, fmt.Sprintf("%s:/home/sandbox/.cache", cfg.CacheDir))
+	}
+	if len(cfg.ExtraBinds) > 0 {
+		binds = append(binds, cfg.ExtraBinds...)
 	}
 
 	hostCfg := &container.HostConfig{

@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"strings"
 	"syscall"
 	"time"
 
@@ -126,6 +127,39 @@ Examples:
 
 			filteredEnv := cnt.FilterEnv(hostEnv, cfg.EnvWhitelist, cfg.EnvBlocklist, logger)
 
+			extraBinds := make([]string, 0, len(cfg.Paths.MountTargets))
+			for _, mountTarget := range cfg.Paths.MountTargets {
+				hostPath := strings.TrimSpace(mountTarget.Source)
+				targetPath := strings.TrimSpace(mountTarget.Target)
+
+				if hostPath == "" || targetPath == "" {
+					logger.Warn("skipping invalid mount target entry", zap.String("host", hostPath), zap.String("target", targetPath))
+					continue
+				}
+				if !strings.HasPrefix(targetPath, "/") {
+					logger.Warn("skipping mount target with non-absolute container path", zap.String("host", hostPath), zap.String("target", targetPath))
+					continue
+				}
+
+				resolvedHostPath, err := filepath.Abs(hostPath)
+				if err != nil {
+					logger.Warn("skipping mount target with invalid host path", zap.String("host", hostPath), zap.Error(err))
+					continue
+				}
+				resolvedHostPath = filepath.Clean(resolvedHostPath)
+
+				if resolvedPath, err := filepath.EvalSymlinks(resolvedHostPath); err == nil {
+					resolvedHostPath = resolvedPath
+				}
+
+				if _, err := os.Stat(resolvedHostPath); err != nil {
+					logger.Warn("skipping mount target because host path does not exist", zap.String("host", resolvedHostPath), zap.Error(err))
+					continue
+				}
+
+				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s", resolvedHostPath, targetPath))
+			}
+
 			manager, err := cnt.NewManager(logger)
 			if err != nil {
 				return fmt.Errorf("could not connect to Docker daemon: %w", err)
@@ -244,6 +278,7 @@ Examples:
 				AttachStdin:  true,
 				Security:     cfg.Security,
 				CacheDir:     cfg.Paths.CacheDir,
+				ExtraBinds:   extraBinds,
 				WrapperMount: wrapperMount,
 			}
 
@@ -342,6 +377,7 @@ func configCmd() *cobra.Command {
 			}
 
 			fmt.Printf("Workspace mount point : %s\n", cfg.Paths.Workspace)
+			fmt.Printf("Extra mounts          : %d\n", len(cfg.Paths.MountTargets))
 			fmt.Printf("Config directory      : %s\n", cfg.Paths.ConfigDir)
 			fmt.Printf("Cache directory       : %s\n", cfg.Paths.CacheDir)
 			fmt.Printf("Container timeout     : %s\n", cfg.Container.Timeout)

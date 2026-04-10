@@ -88,4 +88,13 @@ type PathConfig struct {
 
 	// CacheDir is the host-side directory for cached data.
 	CacheDir string `mapstructure:"cache_dir" yaml:"cache_dir"`
+
+	// MountTargets is a list of host->container bind mounts applied to every run.
+	MountTargets []MountTarget `mapstructure:"mount_targets" yaml:"mount_targets"`
+}
+
+// MountTarget describes a single host to container bind mount.
+type MountTarget struct {
+	Source string `mapstructure:"source" yaml:"source"`
+	Target string `mapstructure:"target" yaml:"target"`
 }

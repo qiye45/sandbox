@@ -44,6 +44,17 @@ Internal mounting rules for the sandbox.
 - `workspace` (string): The mount path inside the container where your code resides (default: `/work`).
 - `config_dir` (string): The directory on your host containing sandbox configurations (default: `~/.sandbox`).
 - `cache_dir` (string): The directory on your host mapped to `~/.cache` inside the container to speed up subsequent agent runs for package managers like `npm`, `pip`, or `bun`.
+- `mount_targets` (list): Additional host path -> container path bind mounts applied to every `sandbox run`.
+
+Example:
+```yaml
+paths:
+  mount_targets:
+    - source: /Users/qiye/.codex
+      target: /home/sandbox/.codex
+    - source: /Users/qiye/.claude
+      target: /home/sandbox/.claude
+```
 
 ---
 
