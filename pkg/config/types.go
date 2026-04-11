@@ -6,6 +6,10 @@ type Config struct {
 	// Images maps agent names to their Docker base images.
 	Images map[string]string `mapstructure:"images" yaml:"images"`
 
+	// Env is a list of explicit env specs injected into every container run.
+	// Each item supports either "KEY=VALUE" or "KEY" (copy from host env).
+	Env []string `mapstructure:"env" yaml:"env"`
+
 	// EnvWhitelist is the list of env var names (with glob support) safe to
 	// forward from the host into the container.
 	EnvWhitelist []string `mapstructure:"env_whitelist" yaml:"env_whitelist"`
@@ -37,6 +41,9 @@ type ContainerConfig struct {
 
 	// Remove indicates whether the container should be removed on exit.
 	Remove bool `mapstructure:"remove" yaml:"remove"`
+
+	// PruneUnusedBeforeRun removes stopped sandbox containers before each run.
+	PruneUnusedBeforeRun bool `mapstructure:"prune_unused_before_run" yaml:"prune_unused_before_run"`
 }
 
 // SecurityConfig holds resource limits and isolation settings for containers.

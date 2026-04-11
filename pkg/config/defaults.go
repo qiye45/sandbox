@@ -21,6 +21,7 @@ func applyDefaults(v *viper.Viper, homeDir string) {
 	v.SetDefault("images.node", "node:24-alpine")
 	v.SetDefault("images.bun", "oven/bun:alpine")
 	v.SetDefault("images.go", "golang:1.26-alpine")
+	v.SetDefault("env", []string{})
 
 	// Environment variable whitelist: pass these from host if they exist.
 	v.SetDefault("env_whitelist", []string{
@@ -54,6 +55,7 @@ func applyDefaults(v *viper.Viper, homeDir string) {
 	v.SetDefault("container.timeout", "30m")
 	v.SetDefault("container.network_mode", "bridge")
 	v.SetDefault("container.remove", true)
+	v.SetDefault("container.prune_unused_before_run", false)
 
 	// Security defaults.
 	v.SetDefault("security.memory_limit", "4GB")

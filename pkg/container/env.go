@@ -9,6 +9,46 @@ import (
 	"go.uber.org/zap"
 )
 
+// ApplyEnvSpecs applies explicit env specs to an existing env slice.
+//
+// Supported forms:
+//   - "KEY=VALUE": set KEY to VALUE
+//   - "KEY": copy KEY from hostEnv when present
+func ApplyEnvSpecs(baseEnv []string, hostEnv map[string]string, specs []string, logger *zap.Logger) []string {
+	result := append([]string{}, baseEnv...)
+	for _, spec := range specs {
+		item := strings.TrimSpace(spec)
+		if item == "" {
+			continue
+		}
+
+		if strings.Contains(item, "=") {
+			parts := strings.SplitN(item, "=", 2)
+			key := strings.TrimSpace(parts[0])
+			if key == "" {
+				if logger != nil {
+					logger.Warn("ignoring invalid env spec with empty key", zap.String("spec", item))
+				}
+				continue
+			}
+			result = upsertEnvValue(result, key, parts[1])
+			continue
+		}
+
+		key := item
+		if value, ok := hostEnv[key]; ok {
+			result = upsertEnvValue(result, key, value)
+			continue
+		}
+
+		if logger != nil {
+			logger.Warn("ignoring env spec not found in host environment", zap.String("key", key))
+		}
+	}
+
+	return result
+}
+
 // FilterEnv constructs the environment variable slice to be injected into the
 // sandbox container. It applies the following logic in order:
 //

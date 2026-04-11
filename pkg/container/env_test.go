@@ -108,6 +108,33 @@ func TestMergePathWithImageEnv_NoImagePathKeepOriginal(t *testing.T) {
 	require.Equal(t, "/opt/homebrew/bin:/usr/bin", asMap["PATH"])
 }
 
+func TestApplyEnvSpecs_StaticAndHostForward(t *testing.T) {
+	logger := zap.NewNop()
+	base := []string{"LANG=en_US.UTF-8"}
+	host := map[string]string{"HTTP_PROXY": "http://127.0.0.1:8080"}
+	specs := []string{"GOPATH=/tmp/.gopath", "HTTP_PROXY"}
+
+	result := cnt.ApplyEnvSpecs(base, host, specs, logger)
+	asMap := sliceToMap(result)
+
+	require.Equal(t, "en_US.UTF-8", asMap["LANG"])
+	require.Equal(t, "/tmp/.gopath", asMap["GOPATH"])
+	require.Equal(t, "http://127.0.0.1:8080", asMap["HTTP_PROXY"])
+}
+
+func TestApplyEnvSpecs_InvalidAndMissingAreIgnored(t *testing.T) {
+	logger := zap.NewNop()
+	base := []string{"LANG=en_US.UTF-8"}
+	host := map[string]string{}
+	specs := []string{"", "=bad", "MISSING_VAR"}
+
+	result := cnt.ApplyEnvSpecs(base, host, specs, logger)
+	asMap := sliceToMap(result)
+
+	require.Equal(t, "en_US.UTF-8", asMap["LANG"])
+	require.NotContains(t, asMap, "MISSING_VAR")
+}
+
 // sliceToMap converts a []string of "KEY=VALUE" entries to a map.
 func sliceToMap(env []string) map[string]string {
 	m := make(map[string]string, len(env))

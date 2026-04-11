@@ -20,6 +20,8 @@ Sandbox keeps these agents inside a secure Docker container, allowing them to wo
 - **Smart Detection**: We automatically pick the right environment for you. If you run "sandbox run python," you get a Python environment.
 - **High Performance**: Once the image is downloaded, your environment starts in less than two seconds.
 - **Ephemeral Environments**: All containers are cleaned up automatically as soon as they're no longer needed.
+- **Unused Container Cleanup**: Optionally prune stopped sandbox containers before each run.
+- **Flexible Env Injection**: Add env vars globally in `~/.sandbox/config.yaml`.
 
 ## Getting Started
 
@@ -80,9 +82,12 @@ sandbox run --seccomp ./my-profile.json python app.py
 
 # Clean up stopped containers created by sandbox:
 sandbox prune
+
+# Prune stopped containers before this run starts:
+sandbox run --prune-unused python app.py
 ```
 
-You can manage configuration with `sandbox config` or clean up stopped containers with `sandbox prune`. Use `sandbox --help` to see all available commands.
+You can manage configuration with `sandbox config`, clean up stopped containers with `sandbox prune`, auto-prune before runs via `--prune-unused` or `container.prune_unused_before_run`, and configure global env injection with `env` in `~/.sandbox/config.yaml`. Use `sandbox --help` to see all available commands.
 
 ### Developing
 

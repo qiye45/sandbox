@@ -203,8 +203,8 @@ func TestSecurity_MemoryLimitEnforced(t *testing.T) {
 	// head -c 2G /dev/urandom reads 2 GB; under a 512 MB memory limit this
 	// will be OOM-killed (non-zero exit).
 	cfg := securityCfg(t, "head -c 2000m /dev/urandom > /tmp/oom_test 2>/dev/null")
-	// tmpfs /tmp is only 256 MB so this will fail either way, which is fine:
-	// the important thing is it doesn't succeed _and_ we don't crash the host.
+	// /tmp is tmpfs-backed and memory pressure is bounded by the container
+	// memory limit, so this should still fail.
 	code := runSecure(t, mgr, cfg)
 	assert.NotEqual(t, 0, code, "process should be killed before consuming 2 GB under a 512 MB memory cap")
 }

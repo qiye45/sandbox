@@ -86,12 +86,14 @@ func BuildSecurityOptions(cfg config.SecurityConfig) (SecurityOptions, error) {
 	// --- Tmpfs mounts ---
 	// /tmp is a general scratch area and must be writable. Node/Bun apps
 	// extract native C++ extensions (.node/.so) here, so 'exec' is required.
+	// We intentionally avoid a fixed tmpfs size for /tmp; capacity is governed
+	// by the container memory/cgroup constraints.
 	// /run is used by some runtimes for PID files etc.
 	// /root is $HOME for root-running processes (agents like claude, codex).
 	// /home provides writable home dirs for any non-root user.
 	// /usr/local/share/ca-certificates is used by Docker Desktop/Orbstack to inject custom CAs.
 	tmpfs := map[string]string{
-		"/tmp":                             "mode=1777,size=256m,exec",
+		"/tmp":                             "mode=1777,exec",
 		"/run":                             "mode=0755,size=64m,exec",
 		"/root":                            "mode=0700,size=256m,exec",
 		"/home":                            "mode=0755,size=256m,exec",

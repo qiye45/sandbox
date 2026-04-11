@@ -37,6 +37,7 @@ func runCmd() *cobra.Command {
 		workspaceFlag     string
 		keepContainer     bool
 		seccompFlag       string
+		pruneUnusedFlag   bool
 	)
 
 	cmd := &cobra.Command{
@@ -126,6 +127,7 @@ Examples:
 			}
 
 			filteredEnv := cnt.FilterEnv(hostEnv, cfg.EnvWhitelist, cfg.EnvBlocklist, logger)
+			filteredEnv = cnt.ApplyEnvSpecs(filteredEnv, hostEnv, cfg.Env, logger)
 
 			extraBinds := make([]string, 0, len(cfg.Paths.MountTargets))
 			for _, mountTarget := range cfg.Paths.MountTargets {
@@ -201,6 +203,12 @@ Examples:
 
 			ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 			defer stop()
+
+			if cfg.Container.PruneUnusedBeforeRun || pruneUnusedFlag {
+				if err := manager.Prune(ctx); err != nil {
+					logger.Warn("failed to prune unused sandbox containers before run", zap.Error(err))
+				}
+			}
 
 			ctx, cancel := context.WithTimeout(ctx, timeout)
 			defer cancel()
@@ -395,6 +403,7 @@ Examples:
 	cmd.Flags().StringVarP(&workspaceFlag, "workspace", "w", "", "Host directory to mount as /work (defaults to cwd)")
 	cmd.Flags().BoolVarP(&keepContainer, "keep", "k", false, "Do not remove the container after execution")
 	cmd.Flags().StringVar(&seccompFlag, "seccomp", "", "Path to a custom seccomp JSON profile")
+	cmd.Flags().BoolVar(&pruneUnusedFlag, "prune-unused", false, "Remove stopped sandbox containers before execution")
 
 	// Stop flag parsing at the first non-flag argument so agent flags
 	// (e.g. python -c, node -e, claude --help) are not consumed by Cobra.
@@ -431,6 +440,8 @@ func configCmd() *cobra.Command {
 			fmt.Printf("Container timeout     : %s\n", cfg.Container.Timeout)
 			fmt.Printf("Network mode          : %s\n", cfg.Container.NetworkMode)
 			fmt.Printf("Remove on exit        : %v\n", cfg.Container.Remove)
+			fmt.Printf("Prune unused before run : %v\n", cfg.Container.PruneUnusedBeforeRun)
+			fmt.Printf("Configured env entries: %d\n", len(cfg.Env))
 			fmt.Printf("Log level             : %s\n", cfg.Logging.Level)
 			fmt.Printf("Log format            : %s\n", cfg.Logging.Format)
 			fmt.Printf("Default image         : %s\n", cfg.Images["default"])

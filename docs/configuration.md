@@ -10,6 +10,20 @@ When you first run `sandbox`, a default configuration file is automatically gene
 A mapping of agent/runner names to their default Docker base images. You can override these to point to your own custom images or specific tags.
 - The `default` key is used when an agent cannot be inferred from the command.
 
+### `env`
+A list of explicit environment variable specs injected into every container run.
+- `KEY=VALUE`: set a fixed value.
+- `KEY`: copy the variable from your host environment when present.
+
+Example:
+```yaml
+env:
+  - GOPATH=/tmp/.gopath
+  - GOMODCACHE=/tmp/.gopath/pkg/mod
+  - GOCACHE=/tmp/.gocache
+  - HTTP_PROXY
+```
+
 ### `env_whitelist`
 A list of environment variable names (globs are supported) that are permitted to be forwarded from your host computer into the container.
 - Example: `["LANG", "SHELL", "TERM"]`
@@ -24,6 +38,7 @@ Controls basic Docker container execution semantics.
 - `timeout` (string): Maximum execution time before the container is forcibly stopped (e.g., `30m`, `1h`).
 - `network_mode` (string): The Docker network mode to use (default: `bridge`).
 - `remove` (boolean): Whether to automatically remove the container after it stops executing (default: `true`).
+- `prune_unused_before_run` (boolean): Whether to remove stopped Sandbox containers before each `sandbox run` (default: `false`).
 
 ### `security`
 Dictates the resource limitations and sandboxing primitives.
