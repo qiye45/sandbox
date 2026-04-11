@@ -1,6 +1,8 @@
 package container_test
 
 import (
+	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -78,6 +80,32 @@ func TestFilterEnv_EmptyWhitelist(t *testing.T) {
 	hostEnv := map[string]string{"PATH": "/usr/bin", "HOME": "/root"}
 	result := cnt.FilterEnv(hostEnv, []string{}, []string{}, logger)
 	require.Empty(t, result)
+}
+
+func TestMergePathWithImageEnv_AppendsHostPathWithoutOverwriting(t *testing.T) {
+	logger := zap.NewNop()
+	filteredEnv := []string{"PATH=/opt/homebrew/bin:/usr/bin", "LANG=en_US.UTF-8"}
+	imageEnv := []string{"PATH=/usr/local/sbin:/usr/local/bin:/usr/bin"}
+
+	merged := cnt.MergePathWithImageEnv(filteredEnv, imageEnv, logger)
+	asMap := sliceToMap(merged)
+
+	require.Equal(
+		t,
+		strings.Join([]string{"/usr/local/sbin", "/usr/local/bin", "/usr/bin", "/opt/homebrew/bin"}, string(filepath.ListSeparator)),
+		asMap["PATH"],
+	)
+	require.Equal(t, "en_US.UTF-8", asMap["LANG"])
+}
+
+func TestMergePathWithImageEnv_NoImagePathKeepOriginal(t *testing.T) {
+	logger := zap.NewNop()
+	filteredEnv := []string{"PATH=/opt/homebrew/bin:/usr/bin", "LANG=en_US.UTF-8"}
+
+	merged := cnt.MergePathWithImageEnv(filteredEnv, []string{"HOME=/root"}, logger)
+	asMap := sliceToMap(merged)
+
+	require.Equal(t, "/opt/homebrew/bin:/usr/bin", asMap["PATH"])
 }
 
 // sliceToMap converts a []string of "KEY=VALUE" entries to a map.

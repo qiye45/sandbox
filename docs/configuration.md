@@ -13,6 +13,7 @@ A mapping of agent/runner names to their default Docker base images. You can ove
 ### `env_whitelist`
 A list of environment variable names (globs are supported) that are permitted to be forwarded from your host computer into the container.
 - Example: `["LANG", "SHELL", "TERM"]`
+- `PATH` is always included automatically so the container receives your host `PATH`.
 
 ### `env_blocklist`
 A rigid list of environment variable names (globs are supported) that will **never** be forwarded to the container, even if matched by the whitelist. This is used to protect sensitive keys.
@@ -42,9 +43,12 @@ Logging level preferences.
 ### `paths`
 Internal mounting rules for the sandbox.
 - `workspace` (string): The mount path inside the container where your code resides (default: `/work`).
+  - The workspace `.git` directory is automatically masked inside the container.
+  - Host `PATH` directories are automatically mounted into the container as read-only binds.
 - `config_dir` (string): The directory on your host containing sandbox configurations (default: `~/.sandbox`).
 - `cache_dir` (string): The directory on your host mapped to `~/.cache` inside the container to speed up subsequent agent runs for package managers like `npm`, `pip`, or `bun`.
 - `mount_targets` (list): Additional host path -> container path bind mounts applied to every `sandbox run`.
+  - `mode` (string, optional): Mount mode. `w` = read-write (default), `r` = read-only.
 
 Example:
 ```yaml
@@ -52,8 +56,10 @@ paths:
   mount_targets:
     - source: /Users/qiye/.codex
       target: /home/sandbox/.codex
+      mode: r
     - source: /Users/qiye/.claude
       target: /home/sandbox/.claude
+      # mode omitted => default "w"
 ```
 
 ---

@@ -54,6 +54,7 @@ func Load(logger *zap.Logger) (*Config, error) {
 
 	// Post-unmarshal robust path expansion. This handles tildes from the
 	// config file itself.
+	cfg.EnvWhitelist = ensureEnvWhitelisted(cfg.EnvWhitelist, "PATH")
 	cfg.Paths.ConfigDir = expandHome(cfg.Paths.ConfigDir, homeDir)
 	cfg.Paths.CacheDir = expandHome(cfg.Paths.CacheDir, homeDir)
 	cfg.Paths.MountTargets = expandMountTargets(cfg.Paths.MountTargets, homeDir)
@@ -96,10 +97,20 @@ func expandMountTargets(mountTargets []MountTarget, homeDir string) []MountTarge
 		expanded = append(expanded, MountTarget{
 			Source: expandHome(mountTarget.Source, homeDir),
 			Target: mountTarget.Target,
+			Mode:   NormalizeMountMode(mountTarget.Mode),
 		})
 	}
 
 	return expanded
+}
+
+func ensureEnvWhitelisted(whitelist []string, key string) []string {
+	for _, item := range whitelist {
+		if strings.EqualFold(strings.TrimSpace(item), key) {
+			return whitelist
+		}
+	}
+	return append(append([]string{}, whitelist...), key)
 }
 
 // WriteDefault creates a default config file at ~/.sandbox/config.yaml if the

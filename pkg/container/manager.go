@@ -200,7 +200,6 @@ func (m *Manager) Create(ctx context.Context, cfg *Config) (string, error) {
 		ReadonlyRootfs: secOpts.ReadonlyRootfs,
 		Tmpfs:          secOpts.Tmpfs,
 		Resources:      secOpts.Resources,
-		Init:           &[]bool{true}[0], // Enable tini or equivalent init to handle signals for PID 1.
 	}
 
 	entrypoint := cfg.Entrypoint

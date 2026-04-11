@@ -55,6 +55,7 @@ container:
 	require.Equal(t, "json", cfg.Logging.Format)
 	require.Equal(t, "5m", cfg.Container.Timeout)
 	require.False(t, cfg.Container.Remove)
+	require.Contains(t, cfg.EnvWhitelist, "PATH")
 	// Defaults should still apply for unset keys.
 	require.Equal(t, "/work", cfg.Paths.Workspace)
 }
@@ -69,6 +70,9 @@ paths:
   mount_targets:
     - source: "~/.codex"
       target: "/home/sandbox/.codex"
+      mode: "r"
+    - source: "~/.claude"
+      target: "/home/sandbox/.claude"
 `
 	require.NoError(t, os.WriteFile(filepath.Join(sandboxDir, "config.yaml"), []byte(cfgContent), 0o644))
 
@@ -77,9 +81,33 @@ paths:
 	logger := zap.NewNop()
 	cfg, err := config.Load(logger)
 	require.NoError(t, err)
-	require.Len(t, cfg.Paths.MountTargets, 1)
+	require.Len(t, cfg.Paths.MountTargets, 2)
 	require.Equal(t, filepath.Join(tmp, ".codex"), cfg.Paths.MountTargets[0].Source)
 	require.Equal(t, "/home/sandbox/.codex", cfg.Paths.MountTargets[0].Target)
+	require.Equal(t, "r", cfg.Paths.MountTargets[0].Mode)
+	require.Equal(t, filepath.Join(tmp, ".claude"), cfg.Paths.MountTargets[1].Source)
+	require.Equal(t, "/home/sandbox/.claude", cfg.Paths.MountTargets[1].Target)
+	require.Equal(t, "w", cfg.Paths.MountTargets[1].Mode)
+}
+
+func TestLoad_EnsurePathInWhitelist(t *testing.T) {
+	tmp := t.TempDir()
+	sandboxDir := filepath.Join(tmp, ".sandbox")
+	require.NoError(t, os.MkdirAll(sandboxDir, 0o755))
+
+	cfgContent := `
+env_whitelist:
+  - LANG
+`
+	require.NoError(t, os.WriteFile(filepath.Join(sandboxDir, "config.yaml"), []byte(cfgContent), 0o644))
+
+	t.Setenv("HOME", tmp)
+
+	logger := zap.NewNop()
+	cfg, err := config.Load(logger)
+	require.NoError(t, err)
+	require.Contains(t, cfg.EnvWhitelist, "PATH")
+	require.Contains(t, cfg.EnvWhitelist, "LANG")
 }
 
 func TestLoad_MalformedFile(t *testing.T) {

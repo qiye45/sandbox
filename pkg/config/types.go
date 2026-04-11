@@ -97,4 +97,6 @@ type PathConfig struct {
 type MountTarget struct {
 	Source string `mapstructure:"source" yaml:"source"`
 	Target string `mapstructure:"target" yaml:"target"`
+	// Mode controls mount permissions: "w" (read-write, default) or "r" (read-only).
+	Mode string `mapstructure:"mode" yaml:"mode"`
 }

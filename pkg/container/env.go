@@ -55,6 +55,93 @@ func FilterEnv(hostEnv map[string]string, whitelist, blocklist []string, logger 
 	return result
 }
 
+// MergePathWithImageEnv merges PATH from filtered env with image default PATH.
+// It preserves image PATH entries first, then appends host PATH entries that are
+// not already present, so we don't hide binaries baked into the image.
+func MergePathWithImageEnv(filteredEnv, imageEnv []string, logger *zap.Logger) []string {
+	hostPath, hasHostPath := envValue(filteredEnv, "PATH")
+	if !hasHostPath || strings.TrimSpace(hostPath) == "" {
+		return filteredEnv
+	}
+
+	imagePath, hasImagePath := envValue(imageEnv, "PATH")
+	if !hasImagePath || strings.TrimSpace(imagePath) == "" {
+		return filteredEnv
+	}
+
+	mergedPath := mergePathList(imagePath, hostPath)
+	if mergedPath == hostPath {
+		return filteredEnv
+	}
+
+	if logger != nil {
+		logger.Debug("merged PATH with image default",
+			zap.String("image_path", imagePath),
+			zap.String("host_path", hostPath),
+		)
+	}
+
+	return upsertEnvValue(filteredEnv, "PATH", mergedPath)
+}
+
+// UpsertEnvValue replaces or appends a "KEY=VALUE" entry in env.
+func UpsertEnvValue(env []string, key, value string) []string {
+	return upsertEnvValue(env, key, value)
+}
+
+func mergePathList(basePath string, appendedPath string) string {
+	merged := make([]string, 0)
+	seen := make(map[string]struct{})
+
+	appendUnique := func(pathList string) {
+		for _, item := range filepath.SplitList(pathList) {
+			trimmed := strings.TrimSpace(item)
+			if trimmed == "" {
+				continue
+			}
+			if _, exists := seen[trimmed]; exists {
+				continue
+			}
+			seen[trimmed] = struct{}{}
+			merged = append(merged, trimmed)
+		}
+	}
+
+	appendUnique(basePath)
+	appendUnique(appendedPath)
+
+	return strings.Join(merged, string(filepath.ListSeparator))
+}
+
+func envValue(env []string, key string) (string, bool) {
+	for _, item := range env {
+		parts := strings.SplitN(item, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if strings.EqualFold(parts[0], key) {
+			return parts[1], true
+		}
+	}
+	return "", false
+}
+
+func upsertEnvValue(env []string, key, value string) []string {
+	result := append([]string{}, env...)
+	for index, item := range result {
+		parts := strings.SplitN(item, "=", 2)
+		if len(parts) != 2 {
+			continue
+		}
+		if strings.EqualFold(parts[0], key) {
+			result[index] = fmt.Sprintf("%s=%s", key, value)
+			return result
+		}
+	}
+
+	return append(result, fmt.Sprintf("%s=%s", key, value))
+}
+
 // matchesGlob returns true if name matches any pattern in patterns.
 // Patterns may contain a single trailing wildcard, e.g. "AWS_*".
 func matchesGlob(name string, patterns []string) bool {

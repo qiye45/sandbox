@@ -131,6 +131,7 @@ Examples:
 			for _, mountTarget := range cfg.Paths.MountTargets {
 				hostPath := strings.TrimSpace(mountTarget.Source)
 				targetPath := strings.TrimSpace(mountTarget.Target)
+				mode := config.NormalizeMountMode(mountTarget.Mode)
 
 				if hostPath == "" || targetPath == "" {
 					logger.Warn("skipping invalid mount target entry", zap.String("host", hostPath), zap.String("target", targetPath))
@@ -157,8 +158,36 @@ Examples:
 					continue
 				}
 
-				extraBinds = append(extraBinds, fmt.Sprintf("%s:%s", resolvedHostPath, targetPath))
+				if strings.TrimSpace(mountTarget.Mode) != "" && mode != strings.ToLower(strings.TrimSpace(mountTarget.Mode)) {
+					logger.Warn("invalid mount mode, defaulting to write mode",
+						zap.String("host", resolvedHostPath),
+						zap.String("target", targetPath),
+						zap.String("mode", mountTarget.Mode),
+					)
+				}
+
+				bindSpec := fmt.Sprintf("%s:%s", resolvedHostPath, targetPath)
+				if mode == config.MountModeRead {
+					bindSpec += ":ro"
+				}
+				extraBinds = append(extraBinds, bindSpec)
 			}
+
+			gitMaskBind, gitMaskCleanup, err := workspaceGitMaskBind(
+				wsDir,
+				cfg.Paths.Workspace,
+				filepath.Join(cfg.Paths.ConfigDir, "tmp"),
+			)
+			if err != nil {
+				return fmt.Errorf("failed to prepare workspace git exclusion: %w", err)
+			}
+			defer gitMaskCleanup()
+			if gitMaskBind != "" {
+				extraBinds = append(extraBinds, gitMaskBind)
+			}
+
+			hostPathBinds, mountedPathEntries := hostPathReadonlyBinds(os.Getenv("PATH"), logger)
+			extraBinds = append(extraBinds, hostPathBinds...)
 
 			manager, err := cnt.NewManager(logger)
 			if err != nil {
@@ -180,6 +209,28 @@ Examples:
 				return fmt.Errorf("image pull failed: %w", err)
 			}
 
+			var imageEntrypoint []string
+			var imageCmd []string
+			var imageEnv []string
+			imgInfo, inspectErr := manager.InspectImage(ctx, finalImage)
+			if inspectErr != nil {
+				logger.Warn("failed to inspect image for defaults", zap.String("image", finalImage), zap.Error(inspectErr))
+			} else if imgInfo.Config != nil {
+				imageEntrypoint = append([]string{}, imgInfo.Config.Entrypoint...)
+				imageCmd = append([]string{}, imgInfo.Config.Cmd...)
+				imageEnv = append([]string{}, imgInfo.Config.Env...)
+			}
+
+			if len(mountedPathEntries) > 0 {
+				filteredEnv = cnt.UpsertEnvValue(
+					filteredEnv,
+					"PATH",
+					strings.Join(mountedPathEntries, string(os.PathListSeparator)),
+				)
+			}
+
+			filteredEnv = cnt.MergePathWithImageEnv(filteredEnv, imageEnv, logger)
+
 			containerCmd := args
 			var entrypoint []string
 			// If an entrypoint is defined for this agent, use it.
@@ -199,12 +250,9 @@ Examples:
 				logger.Info("generating wrapper script for setup commands", zap.Int("count", len(manifest.Setup)))
 
 				if len(entrypoint) == 0 {
-					imgInfo, err := manager.InspectImage(ctx, finalImage)
-					if err == nil && imgInfo.Config != nil {
-						entrypoint = imgInfo.Config.Entrypoint
-						if len(entrypoint) == 0 && len(containerCmd) == 0 {
-							containerCmd = imgInfo.Config.Cmd
-						}
+					entrypoint = append([]string{}, imageEntrypoint...)
+					if len(entrypoint) == 0 && len(containerCmd) == 0 {
+						containerCmd = append([]string{}, imageCmd...)
 					}
 				}
 

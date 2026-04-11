@@ -24,6 +24,7 @@ func applyDefaults(v *viper.Viper, homeDir string) {
 
 	// Environment variable whitelist: pass these from host if they exist.
 	v.SetDefault("env_whitelist", []string{
+		"PATH",
 		"LANG",
 		"LC_ALL",
 		"LC_CTYPE",
