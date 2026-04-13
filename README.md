@@ -85,6 +85,10 @@ sandbox prune
 
 # Prune stopped containers before this run starts:
 sandbox run --prune-unused python app.py
+
+# Manual fallback: inspect sandbox containers first, then force remove:
+docker ps -a --filter label=sandbox=true
+docker rm -f $(docker ps -aq --filter label=sandbox=true)
 ```
 
 You can manage configuration with `sandbox config`, clean up stopped containers with `sandbox prune`, auto-prune before runs via `--prune-unused` or `container.prune_unused_before_run`, and configure global env injection with `env` in `~/.sandbox/config.yaml`. Use `sandbox --help` to see all available commands.
