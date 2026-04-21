@@ -38,6 +38,7 @@ func runCmd() *cobra.Command {
 		keepContainer     bool
 		seccompFlag       string
 		pruneUnusedFlag   bool
+		maskGitFlag       bool
 	)
 
 	cmd := &cobra.Command{
@@ -175,17 +176,19 @@ Examples:
 				extraBinds = append(extraBinds, bindSpec)
 			}
 
-			gitMaskBind, gitMaskCleanup, err := workspaceGitMaskBind(
-				wsDir,
-				cfg.Paths.Workspace,
-				filepath.Join(cfg.Paths.ConfigDir, "tmp"),
-			)
-			if err != nil {
-				return fmt.Errorf("failed to prepare workspace git exclusion: %w", err)
-			}
-			defer gitMaskCleanup()
-			if gitMaskBind != "" {
-				extraBinds = append(extraBinds, gitMaskBind)
+			if maskGitFlag {
+				gitMaskBind, gitMaskCleanup, err := workspaceGitMaskBind(
+					wsDir,
+					cfg.Paths.Workspace,
+					filepath.Join(cfg.Paths.ConfigDir, "tmp"),
+				)
+				if err != nil {
+					return fmt.Errorf("failed to prepare workspace git exclusion: %w", err)
+				}
+				defer gitMaskCleanup()
+				if gitMaskBind != "" {
+					extraBinds = append(extraBinds, gitMaskBind)
+				}
 			}
 
 			hostPathBinds, mountedPathEntries := hostPathReadonlyBinds(os.Getenv("PATH"), logger)
@@ -404,6 +407,7 @@ Examples:
 	cmd.Flags().BoolVarP(&keepContainer, "keep", "k", false, "Do not remove the container after execution")
 	cmd.Flags().StringVar(&seccompFlag, "seccomp", "", "Path to a custom seccomp JSON profile")
 	cmd.Flags().BoolVar(&pruneUnusedFlag, "prune-unused", false, "Remove stopped sandbox containers before execution")
+	cmd.Flags().BoolVar(&maskGitFlag, "mask-git", false, "Hide the .git directory inside the container")
 
 	// Stop flag parsing at the first non-flag argument so agent flags
 	// (e.g. python -c, node -e, claude --help) are not consumed by Cobra.
