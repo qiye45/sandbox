@@ -52,7 +52,7 @@ func applyDefaults(v *viper.Viper, homeDir string) {
 	})
 
 	// Container defaults.
-	v.SetDefault("container.timeout", "30m")
+	v.SetDefault("container.timeout", "876000h")
 	v.SetDefault("container.network_mode", "bridge")
 	v.SetDefault("container.remove", true)
 	v.SetDefault("container.prune_unused_before_run", false)

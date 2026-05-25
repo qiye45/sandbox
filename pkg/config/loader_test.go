@@ -25,7 +25,7 @@ func TestLoad_Defaults(t *testing.T) {
 	require.Equal(t, "/work", cfg.Paths.Workspace)
 	require.NotNil(t, cfg.Paths.MountTargets)
 	require.Empty(t, cfg.Paths.MountTargets)
-	require.Equal(t, "30m", cfg.Container.Timeout)
+	require.Equal(t, "876000h", cfg.Container.Timeout)
 	require.True(t, cfg.Container.Remove)
 	require.Equal(t, "info", cfg.Logging.Level)
 	require.Equal(t, "console", cfg.Logging.Format)
